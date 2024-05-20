@@ -116,30 +116,40 @@ const AudioTrimmer: React.FC<AudioTrimmerProps> = ({ audioFile }) => {
   };
 
   return (
-    <div>
-      <div>
+    <div className='mx-auto'>
+      <div className=' text-xl font-semibold mb-4'>
         <label>Start Time (seconds): </label>
         <input
           type="number"
+          className='text-black'
           value={startTime}
           min="0"
           step="0.01"
           onChange={(e) => setStartTime(Number(e.target.value))}
         />
       </div>
-      <div>
+      <div className=' text-xl font-semibold'>
         <label>End Time (seconds): </label>
         <input
           type="number"
+          className=' text-black'
           value={endTime}
           max={audioBuffer?.duration || 0}
           step="0.01"
           onChange={(e) => setEndTime(Number(e.target.value))}
         />
       </div>
-      <button onClick={handleTrim} disabled={!audioBuffer}>
-        Trim Audio
-      </button>
+      <button
+  onClick={handleTrim}
+  disabled={!audioBuffer}
+  className={`bg-gradient-to-r from-gray-800 to-gray-900 mt-4 text-white px-4 py-2 rounded-md ${audioBuffer ? 'hover:from-gray-900 hover:to-black' : 'opacity-50 cursor-not-allowed'}`}
+>
+  Trim Audio
+</button>
+
+
+
+
     </div>
   );
 };

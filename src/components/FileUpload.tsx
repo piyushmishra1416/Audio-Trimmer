@@ -12,7 +12,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
   };
 
   return (
-    <div>
+    <div className=' mx-auto '>
       <input type="file" accept="audio/*" onChange={handleFileChange} />
     </div>
   );
