@@ -15,7 +15,7 @@ const HomePage: React.FC = () => {
   };
 
   return (
-    <div className='flex flex-col h-screen bg-black text-white  justify-center '>
+    <div className='flex flex-col h-screen bg-black text-white  justify-center px-6 '>
       <h1 className=' font-bold text-5xl md:text-6xl mx-auto  mb-4 '>Audio Trimmer</h1>
       <FileUpload onFileSelect={handleFileSelect} />
       {audioSrc && <AudioPlayer audioSrc={audioSrc}   />}
