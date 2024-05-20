@@ -30,21 +30,21 @@ const AudioTrimmer: React.FC<AudioTrimmerProps> = ({ audioFile }) => {
     const endSample = Math.floor(endTime * sampleRate);
     const trimmedLength = endSample - startSample;
 
-    const offlineContext = new OfflineAudioContext(
+    const trimmedBuffer = audioContext.createBuffer(
       audioBuffer.numberOfChannels,
       trimmedLength,
       sampleRate
     );
 
-    const source = offlineContext.createBufferSource();
-    source.buffer = audioBuffer;
+    for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+      const channelData = audioBuffer.getChannelData(channel);
+      const trimmedChannelData = trimmedBuffer.getChannelData(channel);
+      for (let i = 0; i < trimmedLength; i++) {
+        trimmedChannelData[i] = channelData[startSample + i];
+      }
+    }
 
-    source.connect(offlineContext.destination);
-    source.start(0, startTime, endTime - startTime);
-
-    const renderedBuffer = await offlineContext.startRendering();
-
-    const wavBlob = createWavBlob(renderedBuffer);
+    const wavBlob = createWavBlob(trimmedBuffer);
     saveAs(wavBlob, `trimmed-${audioFile.name}.wav`);
   };
 
@@ -59,6 +59,25 @@ const AudioTrimmer: React.FC<AudioTrimmerProps> = ({ audioFile }) => {
         view.setUint8(offset + i, string.charCodeAt(i));
       }
     };
+
+    const interleave = (buffer: AudioBuffer) => {
+      const channels = [];
+      for (let i = 0; i < buffer.numberOfChannels; i++) {
+        channels.push(buffer.getChannelData(i));
+      }
+
+      const length = buffer.length * buffer.numberOfChannels;
+      const result = new Float32Array(length);
+
+      for (let i = 0; i < buffer.length; i++) {
+        for (let j = 0; j < buffer.numberOfChannels; j++) {
+          result[i * buffer.numberOfChannels + j] = channels[j][i];
+        }
+      }
+      return result;
+    };
+
+    const samples = interleave(buffer);
 
     /* RIFF identifier */
     writeString(view, 0, 'RIFF');
@@ -77,7 +96,7 @@ const AudioTrimmer: React.FC<AudioTrimmerProps> = ({ audioFile }) => {
     /* sample rate */
     view.setUint32(24, buffer.sampleRate, true);
     /* byte rate (sample rate * block align) */
-    view.setUint32(28, buffer.sampleRate * 4, true);
+    view.setUint32(28, buffer.sampleRate * numOfChan * 2, true);
     /* block align (channel count * bytes per sample) */
     view.setUint16(32, numOfChan * 2, true);
     /* bits per sample */
@@ -85,15 +104,12 @@ const AudioTrimmer: React.FC<AudioTrimmerProps> = ({ audioFile }) => {
     /* data chunk identifier */
     writeString(view, 36, 'data');
     /* data chunk length */
-    view.setUint32(40, buffer.length * numOfChan * 2, true);
+    view.setUint32(40, samples.length * 2, true);
 
-    const offset = 44;
-    for (let i = 0; i < buffer.numberOfChannels; i++) {
-      const chanData = buffer.getChannelData(i);
-      for (let j = 0; j < chanData.length; j++) {
-        const sample = Math.max(-1, Math.min(1, chanData[j]));
-        view.setInt16(offset + (j * 2), sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
-      }
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++, offset += 2) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
     }
 
     return new Blob([view], { type: 'audio/wav' });
@@ -103,13 +119,27 @@ const AudioTrimmer: React.FC<AudioTrimmerProps> = ({ audioFile }) => {
     <div>
       <div>
         <label>Start Time (seconds): </label>
-        <input type="number" value={startTime} min="0" step="0.01" onChange={(e) => setStartTime(Number(e.target.value))} />
+        <input
+          type="number"
+          value={startTime}
+          min="0"
+          step="0.01"
+          onChange={(e) => setStartTime(Number(e.target.value))}
+        />
       </div>
       <div>
         <label>End Time (seconds): </label>
-        <input type="number" value={endTime} max={audioBuffer?.duration || 0} step="0.01" onChange={(e) => setEndTime(Number(e.target.value))} />
+        <input
+          type="number"
+          value={endTime}
+          max={audioBuffer?.duration || 0}
+          step="0.01"
+          onChange={(e) => setEndTime(Number(e.target.value))}
+        />
       </div>
-      <button onClick={handleTrim} disabled={!audioBuffer}>Trim Audio</button>
+      <button onClick={handleTrim} disabled={!audioBuffer}>
+        Trim Audio
+      </button>
     </div>
   );
 };
